@@ -1,4 +1,4 @@
-# ScrapyKeeper
+# UBGuardian
 
 [![Latest Version](http://img.shields.io/pypi/v/SpiderKeeper.svg)](https://pypi.python.org/pypi/SpiderKeeper)
 [![Python Versions](http://img.shields.io/pypi/pyversions/SpiderKeeper.svg)](https://pypi.python.org/pypi/SpiderKeeper)
@@ -6,7 +6,7 @@
    
 A scalable admin ui for scrapy spider service 
 
-ScrapyKeeeper is a fork of [SpiderKeeper](https://github.com/DormyMo/SpiderKeeper)
+**UBGuardian** is a fork of [ScrapyKeeper](https://github.com/fliot/ScrapyKeeper) which is a fork of [SpiderKeeper](https://github.com/DormyMo/SpiderKeeper)
 
 Forked to provide:
   - Enhanced statistics (Errors, Exceptions, Retries...)
@@ -15,19 +15,19 @@ Forked to provide:
   - Most of pending SpideKeeper ahead commits
 
 ## Screenshot
-![job dashboard](https://raw.githubusercontent.com/fliot/ScrapyKeeper/master/screenshot/screenshot_1.png)
-![periodic job](https://raw.githubusercontent.com/fliot/ScrapyKeeper/master/screenshot/screenshot_2.1.png)
-![project stats](https://raw.githubusercontent.com/fliot/ScrapyKeeper/master/screenshot/screenshot_3.png)
-![spider stats](https://raw.githubusercontent.com/fliot/ScrapyKeeper/master/screenshot/screenshot_4.png)
+![job dashboard](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_1.png)
+![periodic job](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_2.1.png)
+![project stats](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_3.png)
+![spider stats](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_4.png)
 
-How to install ?
+## Installing
 ```sh
-git clone https://github.com/fliot/ScrapyKeeper.git
+git clone https://github.com/zephyrrus/UBGuardian.git
 cd ScrapyKeeper
 pip install .
 ```
 
-Running:
+## Deployment
 ```sh
 scrapykeeper -h
 
@@ -49,3 +49,21 @@ Options:
   --no-sentry           disable sentry.io error reporting
   -v, --verbose         log level
 ```
+
+## Versioning
+
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/zephyrrus/UBGuardian/tags). 
+
+## Authors
+
+- *Initial work* - [DormyMo](https://github.com/DormyMo)
+
+See also the list of [contributors](https://github.com/DormyMo/SpiderKeeper/contributors) who participated in this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## Contributing
+
+Contributions are welcomed!
