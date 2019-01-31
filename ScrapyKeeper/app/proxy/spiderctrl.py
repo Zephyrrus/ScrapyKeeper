@@ -126,7 +126,11 @@ class SpiderAgent():
                         job_execution.raw_stats = match[0]
                         job_execution.process_raw_stats()
             # commit
-            db.session.commit()
+            try:
+                db.session.commit()
+            except:
+                db.session.rollback()
+                raise
 
     def start_spider(self, job_instance):
         project = Project.find_project_by_id(job_instance.project_id)
@@ -164,8 +168,12 @@ class SpiderAgent():
             job_execution.job_instance_id = job_instance.id
             job_execution.create_time = datetime.datetime.now()
             job_execution.running_on = leader.server
-            db.session.add(job_execution)
-            db.session.commit()
+            try:
+                db.session.add(job_execution)
+                db.session.commit()
+            except:
+                db.session.rollback()
+                raise
 
     def cancel_spider(self, job_execution):
         job_instance = JobInstance.find_job_instance_by_id(job_execution.job_instance_id)
@@ -175,7 +183,11 @@ class SpiderAgent():
                 if spider_service_instance.cancel_spider(project.project_name, job_execution.service_job_execution_id):
                     job_execution.end_time = datetime.datetime.now()
                     job_execution.running_status = SpiderStatus.CANCELED
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except:
+                        db.session.rollback()
+                        raise
                 break
 
     def deploy(self, project, file_path):

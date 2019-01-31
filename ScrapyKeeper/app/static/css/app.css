@@ -45,3 +45,11 @@ canvas {
 .label, .btn {
     opacity: 0.75
 }
+
+.table {
+	height: 100%;
+}
+td.text-args {
+	width: 100%;
+    height: 100%;
+}
