@@ -16,7 +16,7 @@ Forked to provide:
 
 ## Screenshot
 ![job dashboard](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_1.png)
-![periodic job](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_2.png)
+![periodic job](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_2.1.png)
 ![project stats](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_3.png)
 ![spider stats](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_4.png)
 
