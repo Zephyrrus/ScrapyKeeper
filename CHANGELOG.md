@@ -1,4 +1,11 @@
-# ScrapyKeeper Changelog
+# UBGuardian Changelog
+
+## 1.3.1 (2019-02-01)
+- fix a few minor bugs
+- fix argument parsing crashing with single arguments
+- rebrand to UBGuardian
+- restore license file (MIT)
+- fix minor visual bugs
 
 ## 1.3.0 (2018-10-15)
 - fork from SpiderKeeper into ScrapyKeeper
