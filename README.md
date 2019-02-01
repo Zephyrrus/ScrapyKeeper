@@ -15,10 +15,10 @@ Forked to provide:
   - Most of pending SpideKeeper ahead commits
 
 ## Screenshot
-![job dashboard](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_1.png)
-![periodic job](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_2.1.png)
-![project stats](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_3.png)
-![spider stats](https://raw.githubusercontent.com/zephyrrus/UBGuardian/master/screenshot/screenshot_4.png)
+![job dashboard](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_1.png)
+![periodic job](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_2.1.png)
+![project stats](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_3.png)
+![spider stats](https://github.com/Zephyrrus/UBGuardian/raw/master/screenshot/screenshot_4.png)
 
 ## Installing
 ```sh
