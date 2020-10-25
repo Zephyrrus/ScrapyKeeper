@@ -1,7 +1,7 @@
 {% macro getIcon(job) -%}
         {% if job.has_errors %}
             {% set color_name = "danger" %}
-            {% set icon_name = "glyphicon-exclamation-sign" %}
+            {% set icon_name = "glyphicon-remove" %}
         {% elif job.has_warnings %}
             {% set color_name = "warning" %}
             {% set icon_name = "glyphicon-exclamation-sign" %}
@@ -47,7 +47,7 @@
                 {% if job.job_instance %}
                 <tr>
                     <td>{{ getIcon(job) }}</td>
-                    <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
+                    <td>{{ job.job_instance.spider_name }}</td>
                     <td>{{ timedelta(job.end_time,job.start_time) }}</td>
                     <td>{{ job.start_time }}</td>
                     <td>{{ job.items_count }}</td>
@@ -75,22 +75,22 @@
         </table>
     </div>
 </div>
-
-
 {% endblock %}
+
 {% block script %}
-    <script>
-        {% if method == 'GET' %}
-            $(document).ready(function () {
-                  $.ajax({
-                        method: "POST",
-                        url: "/project/{{ project.id }}/job/favorites",
-                        data: { favorite: JSON.parse(window.localStorage.getItem('favorite')).favoriteList.join(',') },
-                        success: function(data){
-                            $('#box-favorite').html(data);
-                        }
-                    })
-            });
-        {% endif %}
-    </script>
+    {% if method == 'GET' %}
+        <script>
+                $(document).ready(function () {
+                    $.ajax({
+                            method: "POST",
+                            url: "/project/{{ project.id }}/job/favorites",
+                            data: { favorite: JSON.parse(window.localStorage.getItem('favorite')).favoriteList.join(',') },
+                            success: function(data){
+                                $('#box-favorite').html(data);
+                            }
+                        })
+                });
+        </script>
+    {% endif %}
 {% endblock %}
+

@@ -1,7 +1,7 @@
 {% macro getIcon(job) -%}
         {% if job.has_errors %}
             {% set color_name = "danger" %}
-            {% set icon_name = "glyphicon-exclamation-sign" %}
+            {% set icon_name = "glyphicon-remove" %}
         {% elif job.has_warnings %}
             {% set color_name = "warning" %}
             {% set icon_name = "glyphicon-exclamation-sign" %}
@@ -177,7 +177,7 @@
                 <tr>
                     <td>{{ getIcon(job) }}</td>
                     <td>{{ job.job_execution_id }}</td>
-                    <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
+                    <td>{{ job.job_instance.spider_name }}</td>
                     <td class="txt-args" data-toggle="tooltip" data-placement="right"
                         title="{{ job.job_instance.spider_arguments }}"
                         style="word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
