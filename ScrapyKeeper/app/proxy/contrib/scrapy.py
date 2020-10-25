@@ -2,6 +2,7 @@ import datetime, time
 
 import requests
 
+from ScrapyKeeper.app import app
 from ScrapyKeeper.app.proxy.spiderctrl import SpiderServiceProxy
 from ScrapyKeeper.app.spider.model import SpiderStatus, Project, SpiderInstance
 from ScrapyKeeper.app.util.http import request
@@ -63,10 +64,22 @@ class ScrapydProxy(SpiderServiceProxy):
                     result[_status].append(dict(id=item['id'], start_time=start_time, end_time=end_time))
         return result if not spider_status else result[spider_status]
 
+    def back_in_time(self, project_name, spider_name, arguments):
+        post_data = dict(project=project_name, spider=spider_name)
+        post_data.update(arguments)
+        data = request("post", self._scrapyd_url() + "/backintime.json", data=post_data, return_type="json")
+        if data and data['status'] == 'ok':
+            return data['jobid']
+        else:
+            import time
+            time.sleep(3)
+            return self.back_in_time(project_name, spider_name, arguments)
+
     def start_spider(self, project_name, spider_name, arguments):
         post_data = dict(project=project_name, spider=spider_name)
         post_data.update(arguments)
         data = request("post", self._scrapyd_url() + "/schedule.json", data=post_data, return_type="json")
+        # app.logger.warn("The response from {} was {} after request with {}".format(self._scrapyd_url(), data['status'] if data else data.status_code, post_data))
         if data and data['status'] == 'ok':
             return data['jobid']
         else:

@@ -13,6 +13,21 @@
             data-target="#job-run-modal">RunOnce
     </button>
 </ol>
+{% if bit_enabled %}
+    <ol style="
+        margin-top: 0;
+        margin-bottom: 0;
+        margin-right:100px;
+        font-size: 12px;
+        padding: 7px 5px;
+        position: absolute;
+        top: 15px;
+        right: 10px;">
+        <button type="button" class="btn btn-danger btn-flat" style="margin-top: -10px;" data-toggle="modal"
+                data-target="#backintime-modal">Back-in-time
+        </button>
+    </ol>
+{% endif %}
 {% endblock %}
 {% block content_body %}
 <!--======next job======-->
@@ -28,7 +43,6 @@
         <table class="table table-striped">
             <tr>
                 <th style="width: 10px">#</th>
-                <th style="width: 30px">Job</th>
                 <th style="width: 160px">Spider</th>
                 <th style="width: 100px">Args</th>
                 <th style="width: 40px">Priority</th>
@@ -38,10 +52,10 @@
             {% if job.job_instance %}
             <tr>
                 <td>{{ job.job_execution_id }}</td>
-                <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
                 <td>{{ job.job_instance.spider_name }}</td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
-                    title="{{ job.job_instance.spider_arguments }}">{{ job.job_instance.spider_arguments[:15] }}
+                    title="{{ job.job_instance.spider_arguments }}"
+                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
                 {% if job.job_instance.priority == -1 %}
                 <td>
@@ -81,10 +95,8 @@
         <table class="table table-striped">
             <tr>
                 <th style="width: 10px">#</th>
-                <th style="width: 30px">Job</th>
-                <th style="width: 160px">Spider</th>
+                <th style="width: 150px">Spider</th>
                 <th style="width: 100px">Args</th>
-                <th style="width: 20px">Priority</th>
                 <th style="width: 40px">Runtime</th>
                 <th style="width: 120px">Started</th>
                 <th style="width: 40px">Log</th>
@@ -95,28 +107,11 @@
             {% if job.job_instance %}
             <tr>
                 <td>{{ job.job_execution_id }}</td>
-                <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
                 <td>{{ job.job_instance.spider_name }}</td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
-                    title="{{ job.job_instance.spider_arguments }}">{{ job.job_instance.spider_arguments[:15] }}
+                    title="{{ job.job_instance.spider_arguments }}"
+                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
-                {% if job.job_instance.priority == -1 %}
-                <td>
-                    <span class="label label-default">LOW</span>
-                </td>
-                {% elif job.job_instance.priority == 0 %}
-                <td>
-                    <span class="label label-info">NORMAL</span>
-                </td>
-                {% elif job.job_instance.priority == 1 %}
-                <td>
-                    <span class="label label-warning">HIGH</span>
-                </td>
-                {% elif job.job_instance.priority == 2 %}
-                <td>
-                    <span class="label label-danger">HIGHEST</span>
-                </td>
-                {% endif %}
                 <td>{{ timedelta(now,job.start_time) }}</td>
                 <td>{{ job.start_time }}</td>
                 <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
@@ -147,14 +142,13 @@
         <table class="table table-striped">
             <tr>
                 <th style="width: 10px">#</th>
-                <th style="width: 30px">Job</th>
-                <th style="width: 160px">Spider</th>
+                <th style="width: 150px">Spider</th>
                 <th style="width: 100px">Args</th>
-                <th style="width: 20px">Priority</th>
                 <th style="width: 40px">Runtime</th>
                 <th style="width: 120px">Started</th>
-                <th style="width: 10px">Requests</th>
                 <th style="width: 10px">Items</th>
+                <th style="width: 10px">Vehicles Crawled</th>
+                <th style="width: 10px">Vehicles Dropped</th>
                 <th style="width: 10px">Warnings</th>
                 <th style="width: 10px">Errors</th>
                 <th style="width: 10px">Log</th>
@@ -162,34 +156,20 @@
             </tr>
             {% for job in job_status.COMPLETED %}
             {% if job.job_instance %}
-            <tr class="{% if job.has_errors %}danger{% elif job.has_warnings %}warning{% endif %}">
+<!--            <tr class="{% if job.has_errors %}danger{% elif job.has_warnings %}warning{% endif %}">-->
+            <tr class="{{ spider_colours.get(job.job_instance.spider_name).colour }}">
                 <td>{{ job.job_execution_id }}</td>
-                <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
-                <td>{{ job.job_instance.spider_name }}</td>
+                <td><a target="_blank" href="/project/{{ project.id }}/{{ spider_colours.get(job.job_instance.spider_name).spider_id }}/stats"> {{ job.job_instance.spider_name }} </a></td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
-                    title="{{ job.job_instance.spider_arguments }}">{{ job.job_instance.spider_arguments[:15] }}
+                    title="{{ job.job_instance.spider_arguments }}"
+                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
-                {% if job.job_instance.priority == -1 %}
-                <td>
-                    <span class="label label-default">LOW</span>
-                </td>
-                {% elif job.job_instance.priority == 0 %}
-                <td>
-                    <span class="label label-info">NORMAL</span>
-                </td>
-                {% elif job.job_instance.priority == 1 %}
-                <td>
-                    <span class="label label-warning">HIGH</span>
-                </td>
-                {% elif job.job_instance.priority == 2 %}
-                <td>
-                    <span class="label label-danger">HIGHEST</span>
-                </td>
-                {% endif %}
+
                 <td>{{ timedelta(job.end_time,job.start_time) }}</td>
                 <td>{{ job.start_time }}</td>
-                <td>{{ job.requests_count }}</td>
                 <td>{{ job.items_count }}</td>
+                <td>{{ job.vehicles_crawled }}</td>
+                <td>{{ job.vehicles_dropped }}</td>
                 <td>{{ job.warnings_count }}</td>
                 <td>{{ job.errors_count }}</td>
                 <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
@@ -198,8 +178,10 @@
                 <td>
                     {% if job.running_status == 2 %}
                         <span class="label label-success">FINISHED</span>
-                    {% else %}
+                    {% elif job.running_status == 3 %}
                         <span class="label label-warning">CANCELED</span>
+                    {% else %}
+                        <span class="label label-danger">CRASHED</span>
                     {% endif %}
                     <a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/remove"><span class="label label-danger">REMOVE</span></a>
                 </td>
@@ -250,6 +232,11 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Overlapping</label>
+                        <input type="checkbox" name="overlapping" class="form-check-input" value="True">
+                    </div>
+
                     <input type="hidden" name="run_type" value="onetime">
                 </div>
                 <div class="modal-footer">
@@ -262,7 +249,57 @@
     </div>
     <!-- /.modal-dialog -->
 </div>
-<!-- /.modal -->
+{% if bit_enabled %}
+    <div class="modal fade" role="dialog" id="backintime-modal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="/project/{{ project.id }}/job/back-in-time" method="post">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span></button>
+                        <h4 class="modal-title">Run back in time command</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Spider</label>
+                            <select class="form-control selectpicker" name="spider_name" multiple data-actions-box="true" data-live-search="true">
+                                {% for spider in spider_list %}
+                                <option value="{{ spider.spider_name }}">{{ spider.spider_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Callback</label>
+                            <input type="text" name="callback" class="form-control" placeholder="parse_vehicle">
+                        </div>
+                        <div class="form-group">
+                            <label>Args</label>
+                            <input type="text" name="spider_arguments" class="form-control" placeholder="-f description -f title">
+                        </div>
+                        <div class="form-group">
+                            <label>Chose Daemon</label>
+                            <select class="form-control" name="daemon">
+                                <option value="auto">auto</option>
+                                {% for server in servers %}
+                                <option value="{{ server }}">{{ server }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <input type="hidden" name="run_type" value="onetime">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default pull-left" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+            <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+    </div>
+    <!-- /.modal -->
+{% endif %}
 {% endblock %}
 {% block script %}
 <script>

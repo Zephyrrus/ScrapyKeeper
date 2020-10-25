@@ -13,7 +13,9 @@ from flask import session
 from flask_restful_swagger import swagger
 from werkzeug.utils import secure_filename
 
-from ScrapyKeeper.app import db, api, agent, app
+from ScrapyKeeper import config
+from ScrapyKeeper.app import db, api, agent, app, SpiderSetup
+from ScrapyKeeper.app.spider import helper
 from ScrapyKeeper.app.spider.model import JobInstance, Project, JobExecution, SpiderInstance, JobRunType
 
 api_spider_bp = Blueprint('spider', __name__)
@@ -43,12 +45,13 @@ class ProjectCtrl(flask_restful.Resource):
         project_name = request.form['project_name']
         project = Project()
         project.project_name = project_name
+        db.session.add(project)
         try:
-            db.session.add(project)
             db.session.commit()
-        except:
+        except Exception as e:
             db.session.rollback()
-            raise
+            raise e
+
         return project.to_dict()
 
 
@@ -139,12 +142,12 @@ class SpiderDetailCtrl(flask_restful.Resource):
         job_instance.run_type = JobRunType.ONETIME
         job_instance.priority = request.form.get('priority', 0)
         job_instance.enabled = -1
+        db.session.add(job_instance)
         try:
-            db.session.add(job_instance)
             db.session.commit()
-        except:
+        except Exception as e:
             db.session.rollback()
-            raise
+            raise e
         agent.start_spider(job_instance)
         return True
 
@@ -262,12 +265,12 @@ class JobCtrl(flask_restful.Resource):
                 job_instance.cron_day_of_month = post_data.get('cron_day_of_month') or '*'
                 job_instance.cron_day_of_week = post_data.get('cron_day_of_week') or '*'
                 job_instance.cron_month = post_data.get('cron_month') or '*'
+            db.session.add(job_instance)
             try:
-                db.session.add(job_instance)
                 db.session.commit()
-            except:
+            except Exception as e:
                 db.session.rollback()
-                raise
+                raise e
             return True
 
 
@@ -385,10 +388,9 @@ class JobDetailCtrl(flask_restful.Resource):
             job_instance.tags = post_data.get('tags', 0) or job_instance.tags
             try:
                 db.session.commit()
-            except:
+            except Exception as e:
                 db.session.rollback()
-                raise
-                
+                raise e
             if post_data.get('status') == 'run':
                 agent.start_spider(job_instance)
             return True
@@ -457,8 +459,7 @@ def intercept_no_project():
 
 @app.context_processor
 def inject_common():
-    return dict(now=datetime.datetime.now(),
-                servers=agent.servers)
+    return dict(now=datetime.datetime.now(), servers=agent.servers)
 
 
 @app.context_processor
@@ -471,7 +472,8 @@ def inject_project():
     if session.get('project_id'):
         project_context['project'] = Project.find_project_by_id(session['project_id'])
         project_context['spider_list'] = [spider_instance.to_dict() for spider_instance in
-                                          SpiderInstance.query.filter_by(project_id=session['project_id']).all()]
+                                          SpiderInstance.query.filter_by(project_id=session['project_id']).order_by(
+                                              SpiderInstance.spider_name).all()]
     else:
         project_context['project'] = {}
     return project_context
@@ -527,12 +529,12 @@ def project_create():
     project_name = request.form['project_name']
     project = Project()
     project.project_name = project_name
+    db.session.add(project)
     try:
-        db.session.add(project)
         db.session.commit()
-    except:
+    except Exception as e:
         db.session.rollback()
-        raise
+        raise e
     return redirect("/project/%s/spider/deploy" % project.id, code=302)
 
 
@@ -540,12 +542,12 @@ def project_create():
 def project_delete(project_id):
     project = Project.find_project_by_id(project_id)
     agent.delete_project(project)
+    db.session.delete(project)
     try:
-        db.session.delete(project)
         db.session.commit()
-    except:
+    except Exception as e:
         db.session.rollback()
-        raise
+        raise e
     return redirect("/project/manage", code=302)
 
 
@@ -556,14 +558,94 @@ def project_manage():
 
 @app.route("/project/<project_id>/job/dashboard")
 def job_dashboard(project_id):
-    return render_template("job_dashboard.html", job_status=JobExecution.list_jobs(project_id))
+    jobs = JobExecution.list_jobs(project_id)
+    unique_spiders = set()
+
+    for job in jobs['COMPLETED']:
+        instance = job['job_instance']
+        unique_spiders.add(instance.get('spider_name'))
+
+    spider_colours = {}
+
+    for spider_name in unique_spiders:
+        spider_id, old_items_count = JobExecution.get_last_execution_by_spider(spider_name, project_id)
+        if not old_items_count:
+            spider_colours[spider_name] = {
+                'colour': None,
+                'spider_id': spider_id
+            }
+            continue
+
+        last_items_count = old_items_count.pop(0)
+        (min_items_count, average_items_count, max_items_count) = _compute_item_stats(old_items_count, last_items_count)
+
+        if 0 <= last_items_count <= min_items_count:
+            colour = 'danger'
+        elif min_items_count < last_items_count <= max_items_count:
+            colour = 'success'
+        else:
+            colour = 'warning'
+
+        spider_colours[spider_name] = {
+            'colour': colour,
+            'spider_id': spider_id
+        }
+
+    return render_template("job_dashboard.html", job_status=jobs, spider_colours=spider_colours,
+                           bit_enabled=config.BACK_IN_TIME_ENABLED)
+
+
+@app.route("/project/<project_id>/job/favorites", methods=['GET', 'POST'])
+def job_favorites(project_id):
+    unique_spiders = set()
+    unique_favorite_jobs = list()
+    spider_colours = {}
+
+    if request.method == 'POST':
+        favorite_spiders = list(filter(None, request.form['favorite'].split(',')))
+        jobs = JobExecution.favorite_spiders_jobs(project_id, favorite_spiders, 5000) if favorite_spiders else []
+
+        #  keep only one instance for every spider
+        for job in jobs:
+            instance = job['job_instance']
+            if instance.get('spider_name') not in unique_spiders:
+                unique_favorite_jobs.append(job)
+            unique_spiders.add(instance.get('spider_name'))
+
+        for spider_name in unique_spiders:
+            spider_id, old_items_count = JobExecution.get_last_execution_by_spider(spider_name, project_id)
+            if not old_items_count:
+                spider_colours[spider_name] = {
+                    'colour': None,
+                    'spider_id': spider_id
+                }
+                continue
+
+            last_items_count = old_items_count.pop(0)
+            (min_items_count, average_items_count, max_items_count) = _compute_item_stats(old_items_count, last_items_count)
+
+            if 0 <= last_items_count <= min_items_count:
+                colour = 'danger'
+            elif min_items_count < last_items_count <= max_items_count:
+                colour = 'success'
+            else:
+                colour = 'warning'
+
+            spider_colours[spider_name] = {
+                'colour': colour,
+                'spider_id': spider_id
+            }
+
+    return render_template("job_favorites.html", job_status=unique_favorite_jobs, spider_colours=spider_colours,
+                           method=request.method)
 
 
 @app.route("/project/<project_id>/job/periodic")
 def job_periodic(project_id):
     project = Project.find_project_by_id(project_id)
     job_instance_list = [job_instance.to_dict() for job_instance in
-                         JobInstance.query.filter_by(run_type="periodic", project_id=project_id).all()]
+                         JobInstance.query.filter_by(run_type="periodic", project_id=project_id).order_by(
+                             JobInstance.spider_name).all()]
     return render_template("job_periodic.html",
                            job_instance_list=job_instance_list)
 
@@ -586,12 +668,12 @@ def job_add(project_id):
         job_instance.spider_arguments = ','.join(spider_args)
     if job_instance.run_type == JobRunType.ONETIME:
         job_instance.enabled = -1
+        db.session.add(job_instance)
         try:
-            db.session.add(job_instance)
             db.session.commit()
-        except:
+        except Exception as e:
             db.session.rollback()
-            raise
+            raise e
         agent.start_spider(job_instance)
     if job_instance.run_type == JobRunType.PERIODIC:
         job_instance.cron_minutes = request.form.get('cron_minutes') or '0'
@@ -603,12 +685,12 @@ def job_add(project_id):
         if request.form.get('cron_exp'):
             job_instance.cron_minutes, job_instance.cron_hour, job_instance.cron_day_of_month, job_instance.cron_month, job_instance.cron_day_of_week = \
                 request.form['cron_exp'].split(' ')
+        db.session.add(job_instance)
         try:
-            db.session.add(job_instance)
             db.session.commit()
-        except:
+        except Exception as e:
             db.session.rollback()
-            raise
+            raise e
     return redirect(request.referrer, code=302)
 
 
@@ -623,6 +705,7 @@ def job_addlist(project_id):
         job_instance.spider_arguments = request.form['spider_arguments']
         job_instance.priority = request.form.get('priority', 0)
         job_instance.run_type = request.form['run_type']
+        job_instance.overlapping = bool(request.form.get('overlapping', False))
         # chose daemon manually
         if request.form['daemon'] != 'auto':
             spider_args = []
@@ -632,12 +715,12 @@ def job_addlist(project_id):
             job_instance.spider_arguments = ','.join(spider_args)
         if job_instance.run_type == JobRunType.ONETIME:
             job_instance.enabled = -1
+            db.session.add(job_instance)
             try:
-                db.session.add(job_instance)
                 db.session.commit()
-            except:
+            except Exception as e:
                 db.session.rollback()
-                raise
+                raise e
             agent.start_spider(job_instance)
         if job_instance.run_type == JobRunType.PERIODIC:
             job_instance.cron_minutes = request.form.get('cron_minutes') or '0'
@@ -649,12 +732,50 @@ def job_addlist(project_id):
             if request.form.get('cron_exp'):
                 job_instance.cron_minutes, job_instance.cron_hour, job_instance.cron_day_of_month, job_instance.cron_month, job_instance.cron_day_of_week = \
                     request.form['cron_exp'].split(' ')
+            db.session.add(job_instance)
             try:
-                db.session.add(job_instance)
                 db.session.commit()
-            except:
+            except Exception as e:
                 db.session.rollback()
-                raise
+                raise e
+    return redirect(request.referrer, code=302)
+
+
+@app.route("/project/<project_id>/job/back-in-time", methods=['post'])
+def job_back_in_time(project_id):
+    if not config.BACK_IN_TIME_ENABLED:
+        return redirect(request.referrer, code=302)
+
+    spider_names = request.form.getlist('spider_name')
+    for spider in spider_names:
+        job_instance = JobInstance()
+        job_instance.project_id = project_id
+        job_instance.spider_name = spider
+
+        spider_args = request.form['spider_arguments'].split(",")
+        spider_args.append("--callback={}".format(request.form['callback']))
+        spider_args.append("SCRAPY_PROJECT=SCRAPY_PROJECT")
+        job_instance.spider_arguments = ','.join(spider_args)
+
+        job_instance.priority = request.form.get('priority', 0)
+        job_instance.run_type = JobRunType.ONETIME
+        job_instance.overlapping = True
+        # chose daemon manually
+        if request.form['daemon'] != 'auto':
+            spider_args = []
+            if request.form['spider_arguments']:
+                spider_args = request.form['spider_arguments'].split(",")
+            spider_args.append("daemon={}".format(request.form['daemon']))
+            job_instance.spider_arguments = ','.join(spider_args)
+
+        job_instance.enabled = -1
+        db.session.add(job_instance)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+        agent.run_back_in_time(job_instance)
     return redirect(request.referrer, code=302)
 
 
@@ -668,21 +789,25 @@ def job_stop(project_id, job_exec_id):
 @app.route("/project/<project_id>/jobexecs/<job_exec_id>/log")
 def job_log(project_id, job_exec_id):
     job_execution = JobExecution.query.filter_by(project_id=project_id, id=job_exec_id).first()
-    res = requests.get(agent.log_url(job_execution))
-    res.encoding = 'utf8'
-    raw = res.text
-    return render_template("job_log.html", log_lines=raw.split('\n'))
+    dim = requests.head(agent.log_url(job_execution)).headers._store.get('content-length', ['', '0'])[1]
+    if int(dim) > 15728640:
+        return redirect(agent.log_url(job_execution), code = 302)
+    else:
+        res = requests.get(agent.log_url(job_execution))
+        res.encoding = 'utf8'
+        raw = res.text
+        return render_template("job_log.html", log_lines=raw.split('\n'))
 
 
 @app.route("/project/<project_id>/jobexecs/<job_exec_id>/remove")
 def job_exec_remove(project_id, job_exec_id):
     job_execution = JobExecution.query.filter_by(project_id=project_id, id=job_exec_id).first()
+    db.session.delete(job_execution)
     try:
-        db.session.delete(job_execution)
         db.session.commit()
-    except:
+    except Exception as e:
         db.session.rollback()
-        raise
+        raise e
     return redirect(request.referrer, code=302)
 
 
@@ -696,12 +821,12 @@ def job_run(project_id, job_instance_id):
 @app.route("/project/<project_id>/job/<job_instance_id>/remove")
 def job_remove(project_id, job_instance_id):
     job_instance = JobInstance.query.filter_by(project_id=project_id, id=job_instance_id).first()
+    db.session.delete(job_instance)
     try:
-        db.session.delete(job_instance)
         db.session.commit()
-    except:
+    except Exception as e:
         db.session.rollback()
-        raise
+        raise e
     return redirect(request.referrer, code=302)
 
 
@@ -711,9 +836,21 @@ def job_switch(project_id, job_instance_id):
     job_instance.enabled = -1 if job_instance.enabled == 0 else 0
     try:
         db.session.commit()
-    except:
+    except Exception as e:
         db.session.rollback()
-        raise
+        raise e
+    return redirect(request.referrer, code=302)
+
+
+@app.route("/project/<project_id>/job/<job_instance_id>/switch-overlapping")
+def job_switch_overlapping(project_id, job_instance_id):
+    job_instance = JobInstance.query.filter_by(project_id=project_id, id=job_instance_id).first()
+    job_instance.overlapping = True if not job_instance.overlapping else False
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e
     return redirect(request.referrer, code=302)
 
 
@@ -752,31 +889,48 @@ def spider_egg_upload(project_id):
             flash('deploy failed!')
     return redirect(request.referrer)
 
+@app.route("/project/<project_id>/spider/<spider_id>/auto-schedule-switch")
+def project_spider_auto_schedule(project_id, spider_id):
+    spider_instance = SpiderInstance.query.filter_by(project_id=project_id, id=spider_id).first()
+    spider_setup = SpiderSetup.get_spider_setup(spider_instance)
+    spider_setup.auto_schedule = False if spider_setup.auto_schedule else True
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e
+
+    return redirect(request.referrer, code=302)
 
 @app.route("/project/<project_id>/<spider_id>/stats")
 def project_stats(project_id, spider_id):
     if spider_id == "project":
         project = Project.find_project_by_id(project_id)
         spider = SpiderInstance.query.filter_by(project_id=project_id).all()
+
+        for item in spider:
+            item.spider_name = helper.prepare_spider_name(item.spider_name)
+
         working_time = JobExecution.list_working_time(project_id)
         last_run = JobExecution.list_last_run(project_id)
         quality_review = JobExecution.list_quality_review(project_id)
         last_ee = JobExecution.list_last_ee(project_id)
         run_stats = JobExecution.list_run_stats_by_hours(project_id)
-        return render_template("project_stats.html", project=project, spider=spider, working_time=working_time, last_run=last_run, quality_review=quality_review, last_ee=last_ee, run_stats=run_stats)
-        
+        return render_template("project_stats.html", project=project, spider=spider, working_time=working_time,
+                               last_run=last_run, quality_review=quality_review, last_ee=last_ee, run_stats=run_stats)
+
     elif spider_id == "server":
         project = Project.find_project_by_id(project_id)
         run_stats = JobExecution.list_run_stats_by_hours(project_id)
         request_stats = JobExecution.list_request_stats_by_hours(project_id, spider_id)
         item_stats = JobExecution.list_item_stats_by_hours(project_id, spider_id)
         return render_template("server_stats.html", run_stats=run_stats)
-        
-    else :
+
+    else:
         project = Project.find_project_by_id(project_id)
         spider = SpiderInstance.query.filter_by(project_id=project_id, id=spider_id).first()
         results = JobExecution.list_spider_stats(project_id, spider_id)
-        
+
         start_time = []
         end_time = []
         end_time_short = []
@@ -795,83 +949,109 @@ def project_stats(project_id, spider_id):
         last_start_time = ""
         last_items_count = ""
         old_items_count = []
-        
+        stockcount = []
+        vehicles_crawled = []
+        vehicles_dropped = []
+
         # Display date trick for small charts
         displayDates = False
         displayedDates = []
-        for i in range(0,len(results)):
-            if (results[i]['end_time'] != None ) and (results[i]['end_time'].split(" ")[0] not in displayedDates):
+        for i in range(0, len(results)):
+            if (results[i]['end_time'] != None) and (results[i]['end_time'].split(" ")[0] not in displayedDates):
                 displayedDates.append(results[i]['end_time'].split(" ")[0])
-        if len(displayedDates) > 2 :
+        if len(displayedDates) > 2:
             displayDates = True
-        
+
         # remove last JobInstance if not started or not finished
-        if (len(results) > 0) and ((results[-1]['start_time'] == None) or (results[-1]['end_time'] == None)) :
+        if (len(results) > 0) and ((results[-1]['start_time'] == None) or (results[-1]['end_time'] == None)):
             results.pop()
-        
-        for i in range(0,len(results)):
+
+        for i in range(0, len(results)):
             if i == len(results) - 1:
                 last_start_time = results[i]['start_time']
                 last_items_count = results[i]['items_count']
-            else :
+            else:
                 old_items_count.append(results[i]['items_count'])
-            
+
             start_time.append(results[i]['start_time'])
             end_time.append(results[i]['end_time'])
-            duration_time.append((datetime.datetime.strptime(results[i]['end_time'], '%Y-%m-%d %H:%M:%S') - datetime.datetime.strptime(results[i]['start_time'], '%Y-%m-%d %H:%M:%S')).total_seconds())
-            
+            duration_time.append((datetime.datetime.strptime(results[i]['end_time'],
+                                                             '%Y-%m-%d %H:%M:%S') - datetime.datetime.strptime(
+                results[i]['start_time'], '%Y-%m-%d %H:%M:%S')).total_seconds())
+
             if displayDates:
                 end_time_short.append(end_time[-1].split(" ")[0])
-            else :
+            else:
                 end_time_short.append(end_time[-1].split(" ")[1])
-            
+
             requests_count.append(results[i]['requests_count'])
+            stockcount.append(results[i]['stockcount'])
+            vehicles_crawled.append(results[i]['vehicles_crawled'])
+            vehicles_dropped.append(results[i]['vehicles_dropped'])
             items_count.append(results[i]['items_count'])
             if results[i]['items_count'] != 0:
                 if results[i]['items_count'] - results[i]['requests_count'] >= 0:
                     items_cached.append(results[i]['items_count'] - results[i]['requests_count'])
-                else :
+                else:
                     items_cached.append(0)
-            else :
+            else:
                 items_cached.append(0)
             warnings_count.append(results[i]['warnings_count'])
             errors_count.append(results[i]['errors_count'])
             bytes_count.append(results[i]['bytes_count'])
             retries_count.append(results[i]['retries_count'])
-            
+
             exceptions_count.append(results[i]['exceptions_count'])
-            if results[i]['exceptions_count'] > 10 :
+            if results[i]['exceptions_count'] > 10:
                 exceptions_size.append(30)
-            else :
+            else:
                 exceptions_size.append(results[i]['exceptions_count'] * 3)
-            
+
             cache_size_count.append(results[i]['cache_size_count'])
             cache_object_count.append(results[i]['cache_object_count'])
-        
+
         # tricks to have a nice gauge
         if len(results) == 0:
             min_items_count = 0
             max_items_count = 100
             average_items_count = 50
-        else :
-            items_not_null = []
-            for i in old_items_count :
-                if i != 0 :
-                    items_not_null.append(i)
-            if len(items_not_null) == 0 : items_not_null = [0]
-            min_items_count = min(items_not_null)
-            if len(old_items_count) == 0 : max_items_count = last_items_count
-            else : max_items_count = max(old_items_count)
-            average_items_count = sum(items_not_null) / len(items_not_null)
-            if (max_items_count and (min_items_count / max_items_count)) > 0.8 :
-                min_items_count = max_items_count * 0.8
-            if (max_items_count and (average_items_count / max_items_count)) > 0.95 or max_items_count == last_items_count:
-                max_items_count = average_items_count * 1.05
-        
-        return render_template("spider_stats.html", spider=spider, start_time=start_time, end_time=end_time, end_time_short=end_time_short, duration_time=duration_time,
-                    last_start_time=last_start_time, last_items_count=last_items_count, average_items_count=average_items_count,
-                    min_items_count=min_items_count, max_items_count=max_items_count, 
-                    requests_count=requests_count, items_count=items_count, items_cached=items_cached,
-                    warnings_count=warnings_count, errors_count=errors_count,
-                    bytes_count=bytes_count, retries_count=retries_count, exceptions_count=exceptions_count, exceptions_size=exceptions_size,
-                    cache_size_count=cache_size_count, cache_object_count=cache_object_count)
+        else:
+            (min_items_count, average_items_count, max_items_count) = _compute_item_stats(old_items_count,
+                                                                                          last_items_count)
+
+        last_runs = JobExecution.list_latest_jobs_for_spider(project.id, spider.spider_name)
+
+        return render_template("spider_stats.html", spider=spider, start_time=start_time, end_time=end_time,
+                               end_time_short=end_time_short, duration_time=duration_time,
+                               last_start_time=last_start_time, last_items_count=last_items_count,
+                               average_items_count=average_items_count,
+                               min_items_count=min_items_count, max_items_count=max_items_count,
+                               requests_count=requests_count, items_count=items_count, items_cached=items_cached,
+                               warnings_count=warnings_count, errors_count=errors_count,
+                               bytes_count=bytes_count, retries_count=retries_count, exceptions_count=exceptions_count,
+                               exceptions_size=exceptions_size, last_runs=last_runs,
+                               cache_size_count=cache_size_count, cache_object_count=cache_object_count,
+                               stockcount=stockcount, vehicles_crawled=vehicles_crawled, vehicles_dropped=vehicles_dropped)
+
+
+def _compute_item_stats(old_items_count, last_items_count):
+    items_not_null = []
+    for i in old_items_count:
+        if i != 0:
+            items_not_null.append(i)
+    if len(items_not_null) == 0: items_not_null = [0]
+    min_items_count = min(items_not_null)
+    if len(old_items_count) == 0:
+        max_items_count = last_items_count
+    else:
+        max_items_count = max(old_items_count)
+    average_items_count = sum(items_not_null) / len(items_not_null)
+    if max_items_count == 0:
+        min_items_count = 0
+    else:
+        if (min_items_count / max_items_count) > 0.8:
+            min_items_count = max_items_count * 0.8
+        if (average_items_count / max_items_count) > 0.95 or max_items_count == last_items_count:
+            max_items_count = average_items_count * 1.05
+
+    return min_items_count, average_items_count, max_items_count

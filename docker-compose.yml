@@ -1,0 +1,7 @@
+scrapy-keeper:
+  image: crawlie-keeper
+  environment:
+    - SERVERS=http://localhost:6800,http://localhost:6801
+  ports:
+    - "5000:5000"
+  restart: "no"

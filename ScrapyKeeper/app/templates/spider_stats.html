@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block content_header %}
-<h1>Spider {{ spider.spider_name }} Stats</h1>
+<h1>Spider {{ spider.spider_name }} Stats
+    <a href="#">
+    <i id="favorite-icon" class="fa fa-star-o text-yellow"></i>
+    </a>
+</h1>
 {% endblock %}
 {% block content_body %}
 <!-- https://adminlte.io/docs/2.4/boxes -->
@@ -8,6 +12,69 @@
 <!-- https://canvas-gauges.com/documentation/examples/ -->
 
 <div class="row">
+    <div class="col-md-12">
+        <!--======completed job======-->
+        <div class="box">
+    <div class="box-header">
+        <h3 class="box-title">Completed Jobs</h3>
+        <div class="box-tools pull-right">
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+            </button>
+        </div>
+    </div>
+    <div class="box-body table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th style="width: 10px">#</th>
+                <th style="width: 130px">Spider</th>
+                <th style="width: 100px">Args</th>
+                <th style="width: 40px">Runtime</th>
+                <th style="width: 120px">Started</th>
+                <th style="width: 10px">Items</th>
+                <th style="width: 10px">Stock count</th>
+                <th style="width: 10px">Vehicles Crawled</th>
+                <th style="width: 10px">Vehicles Dropped</th>
+                <th style="width: 10px">Warnings</th>
+                <th style="width: 10px">Errors</th>
+                <th style="width: 10px">Log</th>
+                <th style="width: 10px">Mem used (MB)</th>
+            </tr>
+            {% for job in last_runs %}
+            {% if job.job_instance %}
+<!--            <tr class="{% if job.has_errors %}danger{% elif job.has_warnings %}warning{% endif %}">-->
+            <tr>
+                <td>{{ job.job_execution_id }}</td>
+                <td><a target="_blank" href="/project/{{ project.id }}/{{ spider_id }}/stats"> {{ job.job_instance.spider_name }} </a></td>
+                <td class="txt-args" data-toggle="tooltip" data-placement="right"
+                    title="{{ job.job_instance.spider_arguments }}"
+                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments }}
+                </td>
+                <td>{{ timedelta(job.end_time,job.start_time) }}</td>
+                <td>{{ job.start_time }}</td>
+                <td>{{ job.items_count }}</td>
+                <td>{{ job.stockcount }}</td>
+                <td>{{ job.vehicles_crawled }}</td>
+                <td>{{ job.vehicles_dropped }}</td>
+                <td>{{ job.warnings_count }}</td>
+                <td>{{ job.errors_count }}</td>
+                <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
+                       data-toggle="tooltip" data-placement="top" title="{{ job.service_job_execution_id }}">Log</a>
+                </td>
+                <td>
+                    {% if job.memory_used > 0 %}
+                        {{ (job.memory_used / 1024 / 1024)|round(2) }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+</div>
+    </div>
+
     <div class="col-md-4">
         <div class="box">
             <div class="box-header with-border">
@@ -100,276 +167,317 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 {% block script %}
-<script src="/static/js/Chart.min.js"></script>
-<script>
-    //-------------
-    //- LINE CHART Scraped Items AND Requests -
-    //-------------
-    function createConfig(details, data, label) {
-        return {
-            type: 'line',
-            data: {
-                labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
-                datasets: [{
-                    label: label,
-                    steppedLine: true,
-                    data: data,
-                    borderColor: details.color,
-                    backgroundColor: details.background,
 
-                    fill: true,
-                }]
-            },
-            options: {
-                responsive: true,
-                legend: {
-                    display: false
-                }
+    <script>
+        $(document).ready(function () {
+            if (JSON.parse(window.localStorage.getItem('favorite')).favoriteList.includes("{{ spider.spider_name }}")) {
+                $('#favorite-icon').attr('class', 'fa fa-star text-yellow');
+            } else {
+                $('#favorite-icon').attr('class', 'fa fa-star-o text-yellow');
             }
-        };
-    }
+        });
+    </script>
 
-    //-------------
-    //- BAR CHART Items / Cache / Execution Time / Exception -
-    //-------------
-    var barChartData = {
-        labels: [{% for item in end_time %} '{{ item }}', {% endfor %}],
-        datasets: [{
-            label: 'Requests',
-            backgroundColor: "rgb(255, 99, 132, 0.75)",
-            stack: 'Stack 0',
-            yAxisID: 'y-axis-1',
-            data: [{% for item in requests_count %} '{{ item }}', {% endfor %}]
-        }, {
-            label: 'Cached Requests',
-            backgroundColor: "rgb(54, 162, 235, 0.75)",
-            stack: 'Stack 0',
-            yAxisID: 'y-axis-1',
-            data: [{% for item in items_cached %} '{{ item }}', {% endfor %}]
-        }, {
-            label: 'Execution Time',
-            backgroundColor: "rgb(75, 192, 192, 0.75)",
-            stack: 'Stack 1',
-            yAxisID: 'y-axis-2',
-            data: [{% for item in duration_time %} '{{ item }}', {% endfor %}]
-        }, {
-            type: 'line',
-            showLines: false,
-            fill: false,
-            steppedLine: 'before',
-            label: 'Exception',
-            borderColor: "rgb(0, 0, 0, 0)",
-            backgroundColor: "rgb(255, 205, 86, .75)",
-            pointRadius: [{% for item in exceptions_size %} '{{ item }}', {% endfor %}],
-            pointHoverRadius: [{% for item in exceptions_size %} '{{ item }}', {% endfor %}],
-            pointStyle: 'rectRot',
-            yAxisID: 'y-axis-3',
-            data: [{% for item in exceptions_count %} '{{ item }}', {% endfor %}]
-        }]
-    };
+    <script>
+    $('#favorite-icon').on("click", function(){
+            var existingEntries = JSON.parse(window.localStorage.getItem('favorite')).favoriteList;
+            if (existingEntries == null) existingEntries = [];
+            var spiderName = "{{ spider.spider_name }}".replace("sellers.", '');
 
-    //-------------
-    //- LINE CHART Network -
-    //-------------
-    var lineChartDataNetwork = {
-        labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
-        datasets: [{
-            label: 'Downloaded Bytes',
-            borderColor: "rgb(255, 99, 132)",
-            backgroundColor: "rgb(255, 99, 132)",
-            fill: false,
-            data: [{% for item in bytes_count %} {{ item }}, {% endfor %}],
-            yAxisID: 'y-axis-1',
-        }, {
-            label: 'HTTP Retry',
-            borderColor: "rgb(54, 162, 235)",
-            backgroundColor: "rgb(54, 162, 235)",
-            fill: false,
-            data: [{% for item in retries_count %} {{ item }}, {% endfor %}],
-            yAxisID: 'y-axis-2'
-        }]
-    };
+            if (existingEntries.includes(spiderName)) {
+                var index = existingEntries.indexOf(spiderName)
+                existingEntries.splice(index, 1);
 
-    //-------------
-    //- LINE CHART Cache -
-    //-------------
-    var lineChartDataCache = {
-        labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
-        datasets: [{
-            label: 'Cache Size',
-            borderColor: "rgb(255, 99, 132)",
-            backgroundColor: "rgb(255, 99, 132)",
-            fill: false,
-            data: [{% for item in cache_size_count %} {{ item }}, {% endfor %}],
-            yAxisID: 'y-axis-1',
-        }, {
-            label: 'Cached Objects',
-            borderColor: "rgb(54, 162, 235)",
-            backgroundColor: "rgb(54, 162, 235)",
-            fill: false,
-            data: [{% for item in cache_object_count %} {{ item }}, {% endfor %}],
-            yAxisID: 'y-axis-2'
-        }]
-    };
+                index = existingEntries.indexOf("sellers." + spiderName)
+                existingEntries.splice(index, 1);
 
-    window.onload = function() {
+                window.localStorage.setItem('favorite', JSON.stringify({"favoriteList": existingEntries}));
+
+                $('#favorite-icon').toggleClass('fa-star fa-star-o');
+            } else {
+                existingEntries.push(spiderName);
+                existingEntries.push("sellers." + spiderName);
+
+                window.localStorage.setItem('favorite', JSON.stringify({"favoriteList": existingEntries}));
+
+                $('#favorite-icon').toggleClass('fa-star-o fa-star');
+            }
+    })
+    </script>
+
+
+    <script src="/static/js/Chart.min.js"></script>
+
+    <script>
         //-------------
-        //- LINE CHART Scraped Items -
+        //- LINE CHART Scraped Items AND Requests -
         //-------------
-        var scrapeditems = document.querySelector('.scrapeditems');
-        var data= [{% for item in items_count %} {{ item }}, {% endfor %}];
-        var details = {
-            steppedLine: true,
-            color: "rgb(255, 205, 86)",
-            background: "rgb(255, 205, 86, .15)"
-        };
-        var div = document.createElement('div');
-        div.classList.add('chart-container');
-        var canvas = document.createElement('canvas');
-        canvas.height = "100";
-        div.appendChild(canvas);
-        scrapeditems.appendChild(div);
-        var ctx = canvas.getContext('2d');
-        var config = createConfig(details, data, 'Items');
-        new Chart(ctx, config);
+        function createConfig(details, data, label) {
+            return {
+                type: 'line',
+                data: {
+                    labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
+                    datasets: [{
+                        label: label,
+                        steppedLine: true,
+                        data: data,
+                        borderColor: details.color,
+                        backgroundColor: details.background,
 
-        //-------------
-        //- LINE CHART Requests -
-        //-------------
-        var requestscount = document.querySelector('.requestscount');
-        var data= [{% for item in requests_count %} {{ item }}, {% endfor %}];
-        var details = {
-            steppedLine: true,
-            color: "rgb(255, 99, 132)",
-            background: "rgb(255, 99, 132, 0.15)"
-        };
-        var div = document.createElement('div');
-        div.classList.add('chart-container');
-        var canvas = document.createElement('canvas');
-        canvas.height = "100";
-        div.appendChild(canvas);
-        requestscount.appendChild(div);
-        var ctx = canvas.getContext('2d');
-        var config = createConfig(details, data, 'Requests');
-        new Chart(ctx, config);
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    legend: {
+                        display: false
+                    }
+                }
+            };
+        }
 
         //-------------
         //- BAR CHART Items / Cache / Execution Time / Exception -
         //-------------
-        var itemsexecutiontime = document.querySelector('.itemsexecutiontime');
-        var div = document.createElement('div');
-        div.classList.add('chart-container');
-        var canvas = document.createElement('canvas');
-        div.appendChild(canvas);
-        itemsexecutiontime.appendChild(div);
-        var ctx = canvas.getContext('2d');
-        window.myBar = new Chart(ctx, {
-            type: 'bar',
-            data: barChartData,
-            options: {
-                tooltips: {
-                    mode: 'index',
-                    intersect: false
-                },
-                responsive: true,
-                scales: {
-                    yAxes: [{
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'left',
-                        id: 'y-axis-1',
-                    }, {
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'right',
-                        id: 'y-axis-2',
-                        gridLines: {
-                            drawOnChartArea: false
-                        }
-                    }, {
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: false,
-                        id: 'y-axis-3'
-                    }],
-                }
-            }
-        });
+        var barChartData = {
+            labels: [{% for item in end_time %} '{{ item }}', {% endfor %}],
+            datasets: [{
+                label: 'Requests',
+                backgroundColor: "rgb(255, 99, 132, 0.75)",
+                stack: 'Stack 0',
+                yAxisID: 'y-axis-1',
+                data: [{% for item in requests_count %} '{{ item }}', {% endfor %}]
+            }, {
+                label: 'Cached Requests',
+                backgroundColor: "rgb(54, 162, 235, 0.75)",
+                stack: 'Stack 0',
+                yAxisID: 'y-axis-1',
+                data: [{% for item in items_cached %} '{{ item }}', {% endfor %}]
+            }, {
+                label: 'Execution Time',
+                backgroundColor: "rgb(75, 192, 192, 0.75)",
+                stack: 'Stack 1',
+                yAxisID: 'y-axis-2',
+                data: [{% for item in duration_time %} '{{ item }}', {% endfor %}]
+            }, {
+                type: 'line',
+                showLines: false,
+                fill: false,
+                steppedLine: 'before',
+                label: 'Exception',
+                borderColor: "rgb(0, 0, 0, 0)",
+                backgroundColor: "rgb(255, 205, 86, .75)",
+                pointRadius: [{% for item in exceptions_size %} '{{ item }}', {% endfor %}],
+                pointHoverRadius: [{% for item in exceptions_size %} '{{ item }}', {% endfor %}],
+                pointStyle: 'rectRot',
+                yAxisID: 'y-axis-3',
+                data: [{% for item in exceptions_count %} '{{ item }}', {% endfor %}]
+            }]
+        };
 
         //-------------
         //- LINE CHART Network -
         //-------------
-        var network = document.querySelector('.network');
-        var div = document.createElement('div');
-        div.classList.add('chart-container');
-        var canvas = document.createElement('canvas');
-        canvas.height = "128";
-        div.appendChild(canvas);
-        network.appendChild(div);
-        var ctx = canvas.getContext('2d');
-        window.myLine = Chart.Line(ctx, {
-            data: lineChartDataNetwork,
-            options: {
-                responsive: true,
-                hoverMode: 'index',
-                stacked: false,
-                scales: {
-                    yAxes: [{
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'left',
-                        id: 'y-axis-1',
-                    }, {
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'right',
-                        id: 'y-axis-2',
-                        // grid line settings
-                        gridLines: {
-                            drawOnChartArea: false, // only want the grid lines for one axis to show up
-                        },
-                    }],
-                }
-            }
-        });
+        var lineChartDataNetwork = {
+            labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
+            datasets: [{
+                label: 'Downloaded Bytes',
+                borderColor: "rgb(255, 99, 132)",
+                backgroundColor: "rgb(255, 99, 132)",
+                fill: false,
+                data: [{% for item in bytes_count %} {{ item }}, {% endfor %}],
+                yAxisID: 'y-axis-1',
+            }, {
+                label: 'HTTP Retry',
+                borderColor: "rgb(54, 162, 235)",
+                backgroundColor: "rgb(54, 162, 235)",
+                fill: false,
+                data: [{% for item in retries_count %} {{ item }}, {% endfor %}],
+                yAxisID: 'y-axis-2'
+            }]
+        };
 
         //-------------
         //- LINE CHART Cache -
         //-------------
-        var cache = document.querySelector('.cache');
-        var div = document.createElement('div');
-        div.classList.add('chart-container');
-        var canvas = document.createElement('canvas');
-        canvas.height = "128";
-        div.appendChild(canvas);
-        cache.appendChild(div);
-        var ctx = canvas.getContext('2d');
-        window.myLine = Chart.Line(ctx, {
-            data: lineChartDataCache,
-            options: {
-                responsive: true,
-                hoverMode: 'index',
-                stacked: false,
-                scales: {
-                    yAxes: [{
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'left',
-                        id: 'y-axis-1',
-                    }, {
-                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
-                        display: true,
-                        position: 'right',
-                        id: 'y-axis-2',
-                        // grid line settings
-                        gridLines: {
-                            drawOnChartArea: false, // only want the grid lines for one axis to show up
-                        },
-                    }],
+        var lineChartDataCache = {
+            labels: [{% for item in end_time_short %} '{{ item }}', {% endfor %}],
+            datasets: [{
+                label: 'Cache Size',
+                borderColor: "rgb(255, 99, 132)",
+                backgroundColor: "rgb(255, 99, 132)",
+                fill: false,
+                data: [{% for item in cache_size_count %} {{ item }}, {% endfor %}],
+                yAxisID: 'y-axis-1',
+            }, {
+                label: 'Cached Objects',
+                borderColor: "rgb(54, 162, 235)",
+                backgroundColor: "rgb(54, 162, 235)",
+                fill: false,
+                data: [{% for item in cache_object_count %} {{ item }}, {% endfor %}],
+                yAxisID: 'y-axis-2'
+            }]
+        };
+
+        window.onload = function() {
+            //-------------
+            //- LINE CHART Scraped Items -
+            //-------------
+            var scrapeditems = document.querySelector('.scrapeditems');
+            var data= [{% for item in items_count %} {{ item }}, {% endfor %}];
+            var details = {
+                steppedLine: true,
+                color: "rgb(255, 205, 86)",
+                background: "rgb(255, 205, 86, .15)"
+            };
+            var div = document.createElement('div');
+            div.classList.add('chart-container');
+            var canvas = document.createElement('canvas');
+            canvas.height = "100";
+            div.appendChild(canvas);
+            scrapeditems.appendChild(div);
+            var ctx = canvas.getContext('2d');
+            var config = createConfig(details, data, 'Items');
+            new Chart(ctx, config);
+
+            //-------------
+            //- LINE CHART Requests -
+            //-------------
+            var requestscount = document.querySelector('.requestscount');
+            var data= [{% for item in requests_count %} {{ item }}, {% endfor %}];
+            var details = {
+                steppedLine: true,
+                color: "rgb(255, 99, 132)",
+                background: "rgb(255, 99, 132, 0.15)"
+            };
+            var div = document.createElement('div');
+            div.classList.add('chart-container');
+            var canvas = document.createElement('canvas');
+            canvas.height = "100";
+            div.appendChild(canvas);
+            requestscount.appendChild(div);
+            var ctx = canvas.getContext('2d');
+            var config = createConfig(details, data, 'Requests');
+            new Chart(ctx, config);
+
+            //-------------
+            //- BAR CHART Items / Cache / Execution Time / Exception -
+            //-------------
+            var itemsexecutiontime = document.querySelector('.itemsexecutiontime');
+            var div = document.createElement('div');
+            div.classList.add('chart-container');
+            var canvas = document.createElement('canvas');
+            div.appendChild(canvas);
+            itemsexecutiontime.appendChild(div);
+            var ctx = canvas.getContext('2d');
+            window.myBar = new Chart(ctx, {
+                type: 'bar',
+                data: barChartData,
+                options: {
+                    tooltips: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    responsive: true,
+                    scales: {
+                        yAxes: [{
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'left',
+                            id: 'y-axis-1',
+                        }, {
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'right',
+                            id: 'y-axis-2',
+                            gridLines: {
+                                drawOnChartArea: false
+                            }
+                        }, {
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: false,
+                            id: 'y-axis-3'
+                        }],
+                    }
                 }
-            }
-        });
-    };
-</script>
+            });
+
+            //-------------
+            //- LINE CHART Network -
+            //-------------
+            var network = document.querySelector('.network');
+            var div = document.createElement('div');
+            div.classList.add('chart-container');
+            var canvas = document.createElement('canvas');
+            canvas.height = "128";
+            div.appendChild(canvas);
+            network.appendChild(div);
+            var ctx = canvas.getContext('2d');
+            window.myLine = Chart.Line(ctx, {
+                data: lineChartDataNetwork,
+                options: {
+                    responsive: true,
+                    hoverMode: 'index',
+                    stacked: false,
+                    scales: {
+                        yAxes: [{
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'left',
+                            id: 'y-axis-1',
+                        }, {
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'right',
+                            id: 'y-axis-2',
+                            // grid line settings
+                            gridLines: {
+                                drawOnChartArea: false, // only want the grid lines for one axis to show up
+                            },
+                        }],
+                    }
+                }
+            });
+
+            //-------------
+            //- LINE CHART Cache -
+            //-------------
+            var cache = document.querySelector('.cache');
+            var div = document.createElement('div');
+            div.classList.add('chart-container');
+            var canvas = document.createElement('canvas');
+            canvas.height = "128";
+            div.appendChild(canvas);
+            cache.appendChild(div);
+            var ctx = canvas.getContext('2d');
+            window.myLine = Chart.Line(ctx, {
+                data: lineChartDataCache,
+                options: {
+                    responsive: true,
+                    hoverMode: 'index',
+                    stacked: false,
+                    scales: {
+                        yAxes: [{
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'left',
+                            id: 'y-axis-1',
+                        }, {
+                            type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                            display: true,
+                            position: 'right',
+                            id: 'y-axis-2',
+                            // grid line settings
+                            gridLines: {
+                                drawOnChartArea: false, // only want the grid lines for one axis to show up
+                            },
+                        }],
+                    }
+                }
+            });
+        };
+    </script>
 {% endblock %}

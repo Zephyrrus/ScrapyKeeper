@@ -1,15 +1,14 @@
 import logging
-import os
 from optparse import OptionParser
 
-from ScrapyKeeper.app import app, initialize
+from ScrapyKeeper.app import app, initialize, get_cluster_servers
 
 
 def main():
     opts, args = parse_opts(app.config)
     app.config.update(dict(
         SERVER_TYPE=opts.server_type,
-        SERVERS=opts.servers or app.config.get('SERVERS'),
+        SERVERS=opts.servers or app.config.get('SERVERS') or get_cluster_servers(app),
         SQLALCHEMY_DATABASE_URI=opts.database_url,
         BASIC_AUTH_USERNAME=opts.username,
         BASIC_AUTH_PASSWORD=opts.password,
@@ -19,7 +18,7 @@ def main():
     if opts.verbose:
         app.logger.setLevel(logging.DEBUG)
     initialize()
-    app.logger.info("ScrapyKeeper startd on %s:%s username:%s/password:%s with %s servers:%s" % (
+    app.logger.info("ScrapyKeeper started on %s:%s username:%s/password:%s with %s servers:%s" % (
         opts.host, opts.port, opts.username, opts.password, opts.server_type, ','.join(app.config.get('SERVERS', []))))
     app.run(host=opts.host, port=opts.port, use_reloader=False, threaded=True)
 
@@ -32,10 +31,10 @@ def parse_opts(config):
                       dest='host',
                       default='0.0.0.0')
     parser.add_option("--port",
-                      help="port, default:5000",
+                      help="port, default:5050",
                       dest='port',
                       type="int",
-                      default=5000)
+                      default=5050)
     parser.add_option("--username",
                       help="basic auth username ,default: %s" % config.get('BASIC_AUTH_USERNAME'),
                       dest='username',
@@ -54,7 +53,7 @@ def parse_opts(config):
                       action='append',
                       default=[])
     parser.add_option("--database-url",
-                      help='ScrapyKeeper metadata database default: %s' % config.get('SQLALCHEMY_DATABASE_URI'),
+                      help='ScrapyKeeper metadata database should have the follosing structure: mysql://username:password@server/db',
                       dest='database_url',
                       default=config.get('SQLALCHEMY_DATABASE_URI'))
 

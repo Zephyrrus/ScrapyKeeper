@@ -1,0 +1,78 @@
+{% if method == 'GET' %}
+    {% extends "base.html" %}
+    {% block content_header %}
+        <h1>My Spiders</h1>
+    {% endblock %}
+{% endif %}
+{% block content_body %}
+
+
+<div class="box" id="box-favorite">
+    <div class="box-header">
+        <h3 class="box-title">Last Completed Job of Favorite Spiders</h3>
+    </div>
+    <div class="box-body table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th style="width: 150px">Spider</th>
+                <th style="width: 40px">Runtime</th>
+                <th style="width: 120px">Started</th>
+                <th style="width: 10px">Items</th>
+                <th style="width: 10px">Stock</th>
+                <th style="width: 10px">Vehicles</th>
+                <th style="width: 10px">Dropped</th>
+                <th style="width: 10px">Warnings</th>
+                <th style="width: 10px">Errors</th>
+                <th style="width: 10px">Log</th>
+                <th style="width: 10px">Status/Action</th>
+            </tr>
+            {% for job in job_status %}
+                {% if job.job_instance %}
+                <tr class="{{ spider_colours.get(job.job_instance.spider_name).colour }}">
+                    <td><a target="_blank" href="/project/{{ project.id }}/{{ spider_colours.get(job.job_instance.spider_name).spider_id }}/stats"> {{ job.job_instance.spider_name }} </a></td>
+                    <td>{{ timedelta(job.end_time,job.start_time) }}</td>
+                    <td>{{ job.start_time }}</td>
+                    <td>{{ job.items_count }}</td>
+                    <td>{{ job.stockcount }}</td>
+                    <td>{{ job.vehicles_crawled }}</td>
+                    <td>{{ job.vehicles_dropped }}</td>
+                    <td>{{ job.warnings_count }}</td>
+                    <td>{{ job.errors_count }}</td>
+                    <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
+                           data-toggle="tooltip" data-placement="top" title="{{ job.service_job_execution_id }}">Log</a>
+                    </td>
+                    <td>
+                        {% if job.running_status == 2 %}
+                            <span class="label label-success">FINISHED</span>
+                        {% elif job.running_status == 3 %}
+                            <span class="label label-warning">CANCELED</span>
+                        {% else %}
+                            <span class="label label-danger">CRASHED</span>
+                        {% endif %}
+                        <a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/remove"><span class="label label-danger">REMOVE</span></a>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+
+{% endblock %}
+{% block script %}
+    <script>
+        {% if method == 'GET' %}
+            $(document).ready(function () {
+                  $.ajax({
+                        method: "POST",
+                        url: "/project/{{ project.id }}/job/favorites",
+                        data: { favorite: JSON.parse(window.localStorage.getItem('favorite')).favoriteList.join(',') },
+                        success: function(data){
+                            $('#box-favorite').html(data);
+                        }
+                    })
+            });
+        {% endif %}
+    </script>
+{% endblock %}

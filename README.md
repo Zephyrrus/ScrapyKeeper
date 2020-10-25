@@ -38,7 +38,7 @@ Admin ui for scrapy spider service
 Options:
   -h, --help            show this help message and exit
   --host=HOST           host, default:0.0.0.0
-  --port=PORT           port, default:5000
+  --port=PORT           port, default:5050
   --username=USERNAME   basic auth username ,default: admin
   --password=PASSWORD   basic auth password ,default: admin
   --type=SERVER_TYPE    access spider server type, default: scrapyd

@@ -2,15 +2,26 @@
 <meta charset="utf-8">
 <style>
     .p-log {
-        font-size: 12px;
-        line-height: 1.5em;
+        font-size: 16px;
         color: #1f0909;
         text-align: left
+    }
+    .p-warning-log {
+        background-color: #ffd73f;
+    }
+    .p-error-log {
+        background-color: #ffc7c7;
     }
 </style>
 <body style="background-color:#F3F2EE;">
 {% for line in log_lines %}
+    {% if 'WARNING' in line %}
+<p class="p-warning-log">{{ line }}</p>
+    {% elif 'ERROR' in line %}
+<p class="p-error-log">{{ line }}</p>
+    {% else %}
 <p class="p-log">{{ line }}</p>
+    {% endif %}
 {% endfor %}
 </body>
 </html>

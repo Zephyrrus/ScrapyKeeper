@@ -32,6 +32,7 @@
                 <th style="width: 40px">Priority</th>
                 <th style="width: 100px">Args</th>
                 <th style="width: 40px">Tags</th>
+                <th style="width: 40px">Overlapping</th>
                 <th style="width: 40px">Enabled</th>
                 <th style="width: 100px">Action</th>
             </tr>
@@ -65,6 +66,15 @@
                     title="{{ job_instance.spider_arguments }}">{{ job_instance.spider_arguments }}
                 </td>
                 <td>{{ job_instance.tags }}</td>
+
+                {% if job_instance.overlapping == 1 %}
+                    <td><a href="/project/{{ project.id }}/job/{{ job_instance.job_instance_id }}/switch-overlapping"><span
+                            class="label label-success">ENABLED</span></a></td>
+                {% else %}
+                    <td><a href="/project/{{ project.id }}/job/{{ job_instance.job_instance_id }}/switch-overlapping"><span
+                            class="label label-danger">DISABLED</span></a></td>
+                {% endif %}
+
                 {% if job_instance.enabled %}
                 <td>
                     <a href="/project/{{ project.id }}/job/{{ job_instance.job_instance_id }}/switch"><span
@@ -121,6 +131,10 @@
                                 <label>Args</label>
                                 <input type="text" name="spider_arguments" class="form-control"
                                        placeholder="foo=1,bar=2">
+                            </div>
+                            <div class="form-group">
+                                <label>Overlapping</label>
+                                <input type="checkbox" name="overlapping" class="form-check-input" value="True">
                             </div>
                         </div>
                         <div class="col-md-6">

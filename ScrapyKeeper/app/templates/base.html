@@ -82,7 +82,6 @@
 
         </nav>
     </header>
-
     <!-- =============================================== -->
 
     <!-- Left side column. contains the sidebar -->
@@ -106,16 +105,33 @@
                 <li><a href="/project/{{ project.id }}/spider/dashboard"><i class="fa fa-flask text-red"></i>
                     <span>Dashboard</span></a>
                 </li>
+                <li><a id="favorite" href="/project/{{ project.id }}/job/favorites"><i class="fa fa-star text-yellow"></i>
+                    <span>My Spiders</span></a>
+                </li>
                 <li><a href="/project/{{ project.id }}/spider/deploy"><i class="fa fa-server text-orange"></i>
                     <span>Deploy</span></a></li>
                 <!--<li><a href="#"><i class="fa fa-circle-o text-red"></i> <span>Settings</span></a></li>-->
                 <li class="header">PROJECT</li>
                 <li><a href="/project/{{ project.id }}/project/stats"><i class="fa  fa-area-chart text-gray"></i> <span>Project Stats</span></a>
                 </li>
-                {% for spider in spider_list %}
-                    <li><a href="/project/{{ project.id }}/{{ spider.spider_instance_id }}/stats"><i class="fa fa-align-left text-yellow"></i> <span>Spider {{ spider.spider_name }}</span></a>
-                    </li>
-                {% endfor %}
+                <li>
+                    <a href="#" id="spiders-toggle"  data-toggle="collapse" data-target="#collapse-spiders"
+                       aria-expanded="true" aria-controls="collapse-spiders">
+                        <i class="fa fa-align-left text-yellow"></i>
+                        <span>Spiders</span>
+                    </a>
+
+                    <ul id="collapse-spiders" class="nav collapse" aria-labelledby="spiders-toggle">
+                        {% for spider in spider_list %}
+                        <li>
+                            <a href="/project/{{ project.id }}/{{ spider.spider_instance_id }}/stats">
+                                <i class="fa fa-align-left text-blue"></i>
+                                <span>{{ spider.spider_name }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
                 <!--<li><a href="#"><i class="fa fa-circle-o text-red"></i> <span>Members</span></a></li>-->
                 <li><a href="/project/manage"><i class="fa fa-gears text-red"></i> <span>Manage</span></a></li>
                 <li class="header">SERVER</li>
@@ -149,7 +165,7 @@
         <div class="pull-right hidden-xs">
             <b>Version</b> 1.3.1
         </div>
-        <strong><a href="https://github.com/Zephyrrus/UBGuardian">UBGuardian</a> is a fork of <a href="https://github.com/DormyMo/SpiderKeeper">SpiderKeeper</a>.</strong>
+        <strong><a href="https://github.com/Zephyrrus/UBGuardian">UBGuardian</a> is a fork of <a href="https://github.com/zanachka/ScrapyKeeper">ScrapyKeeper</a>.</strong>
     </footer>
 
     <div class="modal fade" role="dialog" id="project-create-modal">
@@ -196,6 +212,15 @@
 <script src="/static/js/demo.js"></script>
 <!-- Multiple Select -->
 <script src="/static/js/multiple-select.min.js"></script>
+
+<script>
+    // intialize the local storage
+    if (window.localStorage.length == 0) {
+         window.localStorage.setItem('favorite', JSON.stringify({"favoriteList": []}));
+    }
+</script>
+
 {% block script %}{% endblock %}
+
 </body>
 </html>
