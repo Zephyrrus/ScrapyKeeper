@@ -30,10 +30,8 @@
                 <th style="width: 100px">Args</th>
                 <th style="width: 40px">Runtime</th>
                 <th style="width: 120px">Started</th>
-                <th style="width: 10px">Items</th>
-                <th style="width: 10px">Stock count</th>
-                <th style="width: 10px">Vehicles Crawled</th>
-                <th style="width: 10px">Vehicles Dropped</th>
+                <th style="width: 10px">Scrapped</th>
+                <th style="width: 10px">Dropped</th>
                 <th style="width: 10px">Warnings</th>
                 <th style="width: 10px">Errors</th>
                 <th style="width: 10px">Log</th>
@@ -52,9 +50,7 @@
                 <td>{{ timedelta(job.end_time,job.start_time) }}</td>
                 <td>{{ job.start_time }}</td>
                 <td>{{ job.items_count }}</td>
-                <td>{{ job.stockcount }}</td>
-                <td>{{ job.vehicles_crawled }}</td>
-                <td>{{ job.vehicles_dropped }}</td>
+                <td>{{ job.items_dropped }}</td>
                 <td>{{ job.warnings_count }}</td>
                 <td>{{ job.errors_count }}</td>
                 <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
