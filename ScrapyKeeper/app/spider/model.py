@@ -62,8 +62,8 @@ class SpiderInstance(Base):
                     db.session.rollback()
                     raise e
 
-                # create spider setup
-                SpiderSetup.update_spider_setup(spider_instance)
+            # create spider setup
+            SpiderSetup.update_spider_setup(spider_instance)
 
         for spider in cls.query.filter_by(project_id=project_id).all():
             existed_spider = any(
@@ -97,7 +97,7 @@ class SpiderInstance(Base):
             ORDER BY a.spider_name
             '''
         sql_avg_runtime = '''
-            select a.spider_name, avg(TIMESTAMPDIFF(SECOND, start_time, end_time)) avg_run_time from sk_job_instance as a
+            select a.spider_name, avg(strftime('%s',end_time) - strftime('%s',start_time)) avg_run_time from sk_job_instance as a
                 left join sk_job_execution as b
                 on a.id = b.job_instance_id
                 where b.end_time is not null
@@ -269,7 +269,7 @@ class JobExecution(Base):
         self.stockcount = stats.get('stockcount') or 0
 
     def has_warnings(self):
-        return not self.raw_stats or not self.items_count or self.warnings_count
+        return self.warnings_count
 
     def has_errors(self):
         return bool(self.errors_count)
