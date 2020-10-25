@@ -1,3 +1,20 @@
+{% macro getIcon(job) -%}
+        {% if job.has_errors %}
+            {% set color_name = "danger" %}
+            {% set icon_name = "glyphicon-exclamation-sign" %}
+        {% elif job.has_warnings %}
+            {% set color_name = "warning" %}
+            {% set icon_name = "glyphicon-exclamation-sign" %}
+        {% else %}
+            {% set color_name = "success" %}
+            {% set icon_name = "glyphicon-ok" %}
+        {% endif %}
+
+    <div class="align-self-start">
+        <div class="glyphicon {{ icon_name }} text-{{ color_name }}"></div>
+    </div>
+{%- endmacro %}
+
 {% extends "base.html" %}
 {% block content_header %}
 <h1>Job Dashboard</h1>
@@ -55,7 +72,7 @@
                 <td>{{ job.job_instance.spider_name }}</td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
                     title="{{ job.job_instance.spider_arguments }}"
-                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
+                    style="word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
                 {% if job.job_instance.priority == -1 %}
                 <td>
@@ -110,7 +127,7 @@
                 <td>{{ job.job_instance.spider_name }}</td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
                     title="{{ job.job_instance.spider_arguments }}"
-                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
+                    style="word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
                 <td>{{ timedelta(now,job.start_time) }}</td>
                 <td>{{ job.start_time }}</td>
@@ -141,6 +158,7 @@
     <div class="box-body table-responsive">
         <table class="table table-striped">
             <tr>
+                <th style="width: 5px"></th>
                 <th style="width: 10px">#</th>
                 <th style="width: 150px">Spider</th>
                 <th style="width: 100px">Args</th>
@@ -155,38 +173,37 @@
                 <th style="width: 10px">Status/Action</th>
             </tr>
             {% for job in job_status.COMPLETED %}
-            {% if job.job_instance %}
-<!--            <tr class="{% if job.has_errors %}danger{% elif job.has_warnings %}warning{% endif %}">-->
-            <tr class="{{ spider_colours.get(job.job_instance.spider_name).colour }}">
-                <td>{{ job.job_execution_id }}</td>
-                <td><a target="_blank" href="/project/{{ project.id }}/{{ spider_colours.get(job.job_instance.spider_name).spider_id }}/stats"> {{ job.job_instance.spider_name }} </a></td>
-                <td class="txt-args" data-toggle="tooltip" data-placement="right"
-                    title="{{ job.job_instance.spider_arguments }}"
-                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
-                </td>
-
-                <td>{{ timedelta(job.end_time,job.start_time) }}</td>
-                <td>{{ job.start_time }}</td>
-                <td>{{ job.items_count }}</td>
-                <td>{{ job.vehicles_crawled }}</td>
-                <td>{{ job.vehicles_dropped }}</td>
-                <td>{{ job.warnings_count }}</td>
-                <td>{{ job.errors_count }}</td>
-                <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
-                       data-toggle="tooltip" data-placement="top" title="{{ job.service_job_execution_id }}">Log</a>
-                </td>
-                <td>
-                    {% if job.running_status == 2 %}
-                        <span class="label label-success">FINISHED</span>
-                    {% elif job.running_status == 3 %}
-                        <span class="label label-warning">CANCELED</span>
-                    {% else %}
-                        <span class="label label-danger">CRASHED</span>
-                    {% endif %}
-                    <a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/remove"><span class="label label-danger">REMOVE</span></a>
-                </td>
-            </tr>
-            {% endif %}
+                {% if job.job_instance %}
+                <tr>
+                    <td>{{ getIcon(job) }}</td>
+                    <td>{{ job.job_execution_id }}</td>
+                    <td><a href="/project/{{ project.id }}/job/periodic#{{ job.job_instance_id }}">{{ job.job_instance_id }}</a></td>
+                    <td class="txt-args" data-toggle="tooltip" data-placement="right"
+                        title="{{ job.job_instance.spider_arguments }}"
+                        style="word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
+                    </td>
+                    <td>{{ timedelta(job.end_time,job.start_time) }}</td>
+                    <td>{{ job.start_time }}</td>
+                    <td>{{ job.items_count }}</td>
+                    <td>{{ job.vehicles_crawled }}</td>
+                    <td>{{ job.vehicles_dropped }}</td>
+                    <td>{{ job.warnings_count }}</td>
+                    <td>{{ job.errors_count }}</td>
+                    <td><a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/log" target="_blank"
+                        data-toggle="tooltip" data-placement="top" title="{{ job.service_job_execution_id }}">Log</a>
+                    </td>
+                    <td>
+                        {% if job.running_status == 2 %}
+                            <span class="label label-success">FINISHED</span>
+                        {% elif job.running_status == 3 %}
+                            <span class="label label-warning">CANCELED</span>
+                        {% else %}
+                            <span class="label label-danger">CRASHED</span>
+                        {% endif %}
+                        <a href="/project/{{ project.id }}/jobexecs/{{ job.job_execution_id }}/remove"><span class="label label-danger">REMOVE</span></a>
+                    </td>
+                </tr>
+                {% endif %}
             {% endfor %}
         </table>
     </div>

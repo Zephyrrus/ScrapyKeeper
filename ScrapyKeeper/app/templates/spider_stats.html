@@ -47,7 +47,7 @@
                 <td><a target="_blank" href="/project/{{ project.id }}/{{ spider_id }}/stats"> {{ job.job_instance.spider_name }} </a></td>
                 <td class="txt-args" data-toggle="tooltip" data-placement="right"
                     title="{{ job.job_instance.spider_arguments }}"
-                    style="max-width: 170px; word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments }}
+                    style="word-wrap: break-word; white-space: initial;">{{ job.job_instance.spider_arguments[:15] }}
                 </td>
                 <td>{{ timedelta(job.end_time,job.start_time) }}</td>
                 <td>{{ job.start_time }}</td>
