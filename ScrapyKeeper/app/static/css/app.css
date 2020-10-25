@@ -51,3 +51,8 @@ canvas {
 .table {
 	height: 100%;
 }
+
+.tooltip {
+    white-space: initial;
+    word-break: break-all;
+}
